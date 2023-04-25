@@ -5,16 +5,16 @@ Robert Sawyer, aka TrueGeek
 // Load Wi-Fi library
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
+#include "LittleFS.h"
 
-
-const char* ssid = "Put_Your_Network_Name";
-const char* password = "Your_Password";
-int bellPower = LOW, offTime = 3000, onTime = 3000, Cycles = 2, iterations = 0;
+const char* ssid = "Integro";
+const char* password = "Godisgood4ever";
+int bellPower = LOW, onTime, offTime, Cycles, iterations;
 unsigned long onEnd, offEnd;
 
 // Hardware interrupt to handle the signal form the door switch.
 ICACHE_RAM_ATTR void bellOn() {
-  // disable interrupts, so that opening and closing the door quickly does not burn out hte bell with start/stop Cycles.
+  // disable interrupts, so that opening and closing the door quickly does not burn out the bell with start/stop Cycles.
   noInterrupts();
   Serial.println("Interupted!!");
   iterations = Cycles;
@@ -32,13 +32,6 @@ String header;
 const int output = 16;
 const int input = 15;
 
-// Current time
-unsigned long currentTime = millis();
-// Previous time
-unsigned long previousTime = 0;
-// Define timeout time in milliseconds (example: 2000ms = 2s)
-const long timeoutTime = 2000;
-
 void setup() {
   Serial.begin(115200);
   // Initialize the output variables as outputs
@@ -49,9 +42,8 @@ void setup() {
   digitalWrite(output, LOW);
 
   // Connect to Wi-Fi network with SSID and password
-  Serial.println();
   Serial.println();  // move to the next line after initial garbage
-  Serial.print("Connecting to:");
+  Serial.print("Connecting to: ");
   Serial.println(ssid);
 
   WiFi.begin(ssid, password);
@@ -74,6 +66,44 @@ void setup() {
   server.on("/Submitted", handleSubmitted);
   server.onNotFound(handleNotFound);
   server.on("/DIAG", handleDIAG);
+  LittleFS.begin();
+  //LittleFS.format();
+
+  File written = LittleFS.open("/variables.bin", "r");
+  if (written) {
+    int it = 0;
+    char vars[] = {};
+    while (written.available()) {
+      char c = written.read();
+      vars[it] = (c);
+      it++;
+    }
+
+    char* token = strtok(vars, ",");
+    String on = String(token);
+    onTime = on.toInt();
+
+    String values[] = {};
+    Serial.println("Before");
+    for (int i = 0; i <= 2; i++) {
+      Serial.println("inside");
+      token = strtok(NULL, ",");
+      Serial.println(token);
+      values[i] = token;
+    }
+
+    String second = String(values[0]);
+    String third = String(values[1]);
+    offTime = second.toInt();
+    Cycles = third.toInt();
+    written.close();
+
+  } else {
+    Serial.println("No File");
+    onTime = 3000;
+    offTime = 3000;
+    Cycles = 2;
+  }
 }
 
 void handleNotFound() {
@@ -85,11 +115,11 @@ void handleRoot() {
   String Off = String(offTime / 1000);
   String Rings = String(Cycles);
 
-  server.send(200, "text/html", "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><link rel=\"icon\" href=\"data:,\"><style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}.button { background-color: #195B6A; border: none; color: white; padding: 16px 40px;text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}</style></head><body><h1>Bell Configuration:</h1><h2>Current Settings:</h2><p>Bell on time: " + On + " seconds. </p><br><p>Bell off time: " + Off + " seconds. </p><br><p>Number of rings: " + Rings + " seconds. </p><br><p></br><a href=\"/On\"><button class=\"button\">Change Settings</button></a></p></body></html>");
+  server.send(200, "text/html", "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><link rel=\"icon\" href=\"data:,\"><style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}.button { background-color: #195B6A; border: none; color: white; padding: 16px 40px;text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}</style></head><body><h1>Bell Configuration:</h1><h2>Current Settings:</h2><p>Bell on time: " + On + " seconds. </p></br><p>Bell off time: " + Off + " seconds. </p></br><p>Number of rings: " + Rings + " seconds. </p></br><p></br><a href=\"/On\"><button class=\"button\">Change Settings</button></a></p></body></html>");
 }
 
 void handleOn() {
-  server.send(200, "text/html", "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><link rel=\"icon\" href=\"data:,\"><style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}.button { background-color: #195B6A; border: none; color: white; padding: 16px 40px;text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}</style></head><body><h1>Bell Configuration:</h1><label for='SecondsOn'>Number of seconds for the bell to be on:</label><br><br><input type='number' id='Seconds' name='SecondsOn' maxlength='1' <p></br><button class = \"button\" onclick=\"window.location.href = `Off?param=${document.getElementById('Seconds').value}`;\">Next</button></p></body></html>");
+  server.send(200, "text/html", "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><link rel=\"icon\" href=\"data:,\"><style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}.button { background-color: #195B6A; border: none; color: white; padding: 16px 40px;text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}</style></head><body><h1>Bell Configuration:</h1><label for='SecondsOn'>Number of seconds for the bell to be on:</label></br></br><input type='number' id='Seconds' name='SecondsOn' maxlength='1' <p></br></br><button class = \"button\" onclick=\"window.location.href = `Off?param=${document.getElementById('Seconds').value}`;\">Next</button></p></body></html>");
 }
 // document.getElementById('Seconds').value)
 void handleOff() {
@@ -105,11 +135,11 @@ void handleOff() {
   // Convert the query parameter to an integer
   onTime = param_value_str.toInt() * 1000;
 
-  server.send(200, "text/html", "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><link rel=\"icon\" href=\"data:,\"><style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}.button { background-color: #195B6A; border: none; color: white; padding: 16px 40px;text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}</style></head><body><h1>Bell Configuration:</h1><label for='SecondsOff'>Number of seconds for the bell to be off:</label><br><br><input type='number' id='Seconds' name='SecondsOff' maxlength='1' <p></br><button class = \"button\" onclick=\"window.location.href = `Rings?param=${document.getElementById('Seconds').value}`;\">Next</button></body></html>");
+  server.send(200, "text/html", "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><link rel=\"icon\" href=\"data:,\"><style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}.button { background-color: #195B6A; border: none; color: white; padding: 16px 40px;text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}</style></head><body><h1>Bell Configuration:</h1><label for='SecondsOff'>Number of seconds for the bell to be off:</label></br></br><input type='number' id='Seconds' name='SecondsOff' maxlength='1' <p></br></br><button class = \"button\" onclick=\"window.location.href = `Rings?param=${document.getElementById('Seconds').value}`;\">Next</button></body></html>");
 }
 
 void handleRings() {
-    // Check if the query parameter exists
+  // Check if the query parameter exists
   if (!server.hasArg("param")) {
     server.send(400, "text/plain", "Bad Request - Missing parameter");
     return;
@@ -121,11 +151,11 @@ void handleRings() {
   // Convert the query parameter to an integer
   offTime = param_value_str.toInt() * 1000;
 
-  server.send(200, "text.html", "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><link rel=\"icon\" href=\"data:,\"><style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}.button { background-color: #195B6A; border: none; color: white; padding: 16px 40px;text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}</style></head><body><h1>Bell Configuration:</h1><label for='Rings'>Number of times for the bell to ring:</label><br><br><input type='number' id='Rings' name='Rings' maxlength='1' <p><br><br><button class = \"button\" onclick=\"window.location.href = `Submitted?param=${document.getElementById('Rings').value}`;\">Next</button></p></body></html>");
+  server.send(200, "text.html", "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><link rel=\"icon\" href=\"data:,\"><style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}.button { background-color: #195B6A; border: none; color: white; padding: 16px 40px;text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}</style></head><body><h1>Bell Configuration:</h1><label for='Rings'>Number of times for the bell to ring:</label></br></br><input type='number' id='Rings' name='Rings' maxlength='1' <p></br></br><button class = \"button\" onclick=\"window.location.href = `Submitted?param=${document.getElementById('Rings').value}`;\">Next</button></p></body></html>");
 }
 
 void handleSubmitted() {
-    // Check if the query parameter exists
+  // Check if the query parameter exists
   if (!server.hasArg("param")) {
     server.send(400, "text/plain", "Bad Request - Missing parameter");
     return;
@@ -141,7 +171,29 @@ void handleSubmitted() {
   String Off = String(offTime / 1000);
   String Rings = String(Cycles);
 
-  server.send(200, "text/html", "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><link rel=\"icon\" href=\"data:,\"><style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}.button { background-color: #195B6A; border: none; color: white; padding: 16px 40px;text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}</style></head><body><h1>Submitted!</h1><h2>Current Settings:</h2><p>Bell on time: " + On + " seconds. </p><br><p>Bell off time: " + Off + " seconds. </p><br><p>Number of rings: " + Rings + " seconds. </p><br><p></br><a href=\"/\"><button class=\"button\">Go Home</button></a></p></body></html>");
+  if (LittleFS.exists("/variables.bin")) {
+    Serial.print("Removing ");
+    LittleFS.remove("/variables.bin");
+  }
+
+  // Write variable to text file for persistance across reboots.
+  File text = LittleFS.open("/variables.bin", "w");
+  if (!text) {
+    Serial.println("no file");
+  }
+  String variables = String(onTime);
+  variables.concat(",");
+  variables.concat(String(offTime));
+  variables.concat(",");
+  variables.concat(Cycles);
+  variables.concat(",");
+
+  Serial.print(variables);
+  text.print(variables);
+
+  text.close();
+
+  server.send(200, "text/html", "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><link rel=\"icon\" href=\"data:,\"><style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}.button { background-color: #195B6A; border: none; color: white; padding: 16px 40px;text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}</style></head><body><h1>Submitted!</h1><h2>New Settings:</h2><p>Bell on time: " + On + " seconds. </p></br><p>Bell off time: " + Off + " seconds. </p></br><p>Number of rings: " + Rings + " seconds. </p></br><p><a href=\"/\"><button class=\"button\">Go Home</button></a></p></body></html>");
 }
 
 void handleDIAG() {
