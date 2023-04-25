@@ -7,8 +7,8 @@ Robert Sawyer, aka TrueGeek
 #include <ESP8266WebServer.h>
 #include "LittleFS.h"
 
-const char* ssid = "Integro";
-const char* password = "Godisgood4ever";
+const char* ssid = "WiFi_Network_Name";
+const char* password = "Password_For_Network";
 int bellPower = LOW, onTime, offTime, Cycles, iterations;
 unsigned long onEnd, offEnd;
 
