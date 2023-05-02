@@ -84,13 +84,14 @@ void setup() {
     onTime = on.toInt();
 
     String values[] = {};
-    Serial.println("Before");
     for (int i = 0; i <= 2; i++) {
-      Serial.println("inside");
       token = strtok(NULL, ",");
-      Serial.println(token);
+      // The next line shouldn't be necessary, but I get constant WDT resets without it.
+      Serial.print("");
       values[i] = token;
     }
+    // The next line shouldn't be necessary, but I get constant WDT resets without it.
+    Serial.print("");
 
     String second = String(values[0]);
     String third = String(values[1]);
